@@ -1,0 +1,4 @@
+input_images/*
+output_gifs/*
+output_images/*
+__pycache__/*
