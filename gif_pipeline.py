@@ -1,8 +1,15 @@
-# I want to create a specific pipeline to generate cool gifs where the
-# images become clearer and then more obscure again.
+###########################################################
+# gif_pipeline.py
+# 
+# This pipeline performs image color simplification and lensing
+# over a range of lenses, which are then composed into a single
+# gif where the image appears to become clearer and then more
+# obscure again.
+#
+# Zachary Stone, February 2026
+###########################################################
 from pathlib import Path
 from PIL import Image
-import sys
 import pix_sort as PS
 import lens_mask as LM
 import pixel_basics as PB
@@ -10,10 +17,9 @@ import text_inputs as TI
 
 # GLOBALS
 IMAGE_FILES = []
-THRESHOLDS = [15,20,30,40,50,127,150]
 LENS_RADII = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
 
-
+# Generate all the frames of the gif in order and return them in a list
 def makeGif(numLenses, inImg):
     gifFrames = [None] * (numLenses * 2 + 1) # empty list
     for i in range(0,numLenses):
@@ -28,6 +34,7 @@ def makeGif(numLenses, inImg):
         gifFrames[frameB] = outImg
     return gifFrames
 
+# For execution as main module
 if __name__=="__main__":
     IMAGES_DIR = "./input_images"
     # Get user's arguments or defaults

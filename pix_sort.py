@@ -1,3 +1,12 @@
+###########################################################
+# pix_sort.py
+# 
+# This program simplifies the colors in an image using a threshold.
+# The algorithm finds successive [R G B] modes of the image, then
+# turns all pixels within threshold of the mode the same color as the mode.
+#
+# Zachary Stone, January 2026
+###########################################################
 import numpy as np
 from PIL import Image, ImageFilter
 import sys
@@ -103,7 +112,7 @@ def getArgIndx(strArg):
             break
     return retVal
 
-# If calling directly
+# For execution as main module
 if __name__ == "__main__":
     IMAGES_DIR = "./input_images"
     # Get user's arguments or defaults

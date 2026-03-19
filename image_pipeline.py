@@ -1,5 +1,11 @@
-# I want to automate and chain together the execution of pix_sort and
-# lens_mask.py so I can just generate a bunch of images to view.
+###########################################################
+# image_pipeline.py
+# 
+# This program chains together the execution of pix_sort and
+# lens_mask to generate images composed of discrete bottle caps.
+#
+# Zachary Stone, January 2026
+###########################################################
 from pathlib import Path
 from PIL import Image
 import pix_sort as PS
@@ -9,6 +15,7 @@ import text_inputs as TI
 # GLOBALS
 IMAGE_FILES = []
 
+# For execution as main module
 if __name__=="__main__":
     IMAGES_DIR = "./input_images"
     OUTPUT_DIR = "./output_images"

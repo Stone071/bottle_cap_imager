@@ -1,4 +1,11 @@
-# This code in this file is just meant to help parse inputs to the tools
+###########################################################
+# text_inputs.py
+# 
+# This code in this file is just meant to help parse inputs
+# to the other tools.
+#
+# Zachary Stone, March 2026
+###########################################################
 import sys
 from pathlib import Path
 
@@ -23,6 +30,7 @@ def getArgIndx(strArg):
             break
     return retVal
 
+# Process all the user input arguments and provide defaults if none specified
 def getInputArgs():
     # check for an input file
     try:

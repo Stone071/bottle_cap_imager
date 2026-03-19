@@ -1,9 +1,15 @@
-# This file is meant to take what I learned from circle_draw.py and
-# make a mask of circle lenses over an input image, making the color in
-# each circle the MODE in each circle
+###########################################################
+# lens_mask.py
+# 
+# This program simplifies the colors in an image using a threshold.
+# The algorithm finds successive [R G B] modes of the image, then
+# turns all pixels within threshold of the mode the same color as the mode.
+#
+# Zachary Stone, January 2026
+###########################################################
 
-# NOTE: THIS IS STILL NOT THE END GOAL. I WANT THE CIRCLES TO FILL THE
-# COLOR BLOBS, NOT BE ON AN EVEN GRID
+# NOTE: THIS IS STILL NOT THE END GOAL. I want the bottle caps to fill
+# the color blobs, not be on an even grid.
 
 import numpy as np
 from PIL import Image
@@ -16,23 +22,27 @@ from pathlib import Path
 RGB_WHITE = (255,255,255)
 RGB_BLACK = (0,0,0)
 
+# Determine if a given pixel specified by coordinates [m,n] is within the bottle
+# of size circRad centered at [centerRow, centerCol]
 def inLens(m,n,circRad,centerRow,centerCol):
     if (((PB.ezDiff(m,centerRow))**2+(PB.ezDiff(n,centerCol))**2) <= circRad**2):
         return True
     else:
         return False
 
-def getBucketDims(imgArray, circRad):
+# Determine the number of lenses spanning the width and length of the image
+def getNumLenses(imgArray, circRad):
     dims = np.shape(imgArray)
     circDiameter = circRad * 2
-    # Calc number of buckets
-    rowBuckets = math.ceil(dims[0] / circDiameter)
-    colBuckets = math.ceil(dims[1] / circDiameter)
+    # Calc number of lenses
+    rowLenses = math.ceil(dims[0] / circDiameter)
+    colLenses = math.ceil(dims[1] / circDiameter)
     # Let's start with bucketsize for area of circle
-    return (rowBuckets, colBuckets)
+    return (rowLenses, colLenses)
 
+
+# Check the image dimensions so no out of bounds writes
 def checkEndpoints(imgDims, brPix):
-    # Check the image dimensions so no out of bounds writes
     rowLim = imgDims[0]
     colLim = imgDims[1]
     if (brPix[0] < rowLim): 
@@ -60,7 +70,7 @@ def main(inImg, circleRad):
 
     # Create a numpy array which can be used as buckets to hold all
     # the pixel colors contained in each lens.
-    rowBuckets, colBuckets = getBucketDims(imArray, circleRad)
+    rowBuckets, colBuckets = getNumLenses(imArray, circleRad)
 
     # I think what we need to do is to separate the image into lens sections at the get go, then get the MODE
     # for each section, then look through the pixels in each section and recolor.
@@ -98,7 +108,8 @@ def main(inImg, circleRad):
                         imArray[i,j] = RGB_BLACK
 
     return imArray
-                
+
+# For execution as main module
 if __name__ == "__main__":
     IMAGES_DIR = "./input_images"
     # Get user's arguments or defaults
