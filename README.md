@@ -2,7 +2,7 @@
 
 ## Background
 
-On a cross-country drive from Connecticut to Seattle, my girlfriend and I found ourselves in Crescent City, CA. We got some coffee and stopped for a walk on the beach, where we ran into an incredible mural of an ocean wave made entirely of repurposed plastic lids, bottle caps, and other similar items. I had been enjoying the trip very much, but was in need of a bit of a project to think about, and the inspiration was immediate. I wanted to write a program to do something similar -- create murals of discrete circular elements from an image.
+On a cross-country drive from Connecticut to Seattle, my girlfriend and I found ourselves in Crescent City, CA. We got some coffee and stopped for a walk on the beach, where we ran into an incredible mural of an ocean wave made entirely of repurposed plastic lids, bottle caps, and other similar items. I had been enjoying the trip very much, but was in need of a project to think about, and the inspiration was immediate. I wanted to write a program to do something similar -- create murals of discrete circular elements from an image.
 
 ## Overview
 
@@ -28,26 +28,32 @@ Additionally, gif_pipeline.py creates many images from a single input with diffe
 
 ### pix_sort.py
 
-`python3 pix_sort.py` will run the program with default options and display the resultant image
+`$ python3 pix_sort.py` will run the program with default options and display the resultant image
 
 ### lens_mask.py
 
-`python3 lens_mask.py` will run the program with default options and display the resultant image
+`$ python3 lens_mask.py` will run the program with default options and display the resultant image
 
 ### image_pipeline.py
 
-`python3 image_pipeline.py` runs the two prior commands and saves the output in the output_images directory.
+`$ python3 image_pipeline.py` runs the two prior commands and saves the output in the output_images directory.
 
 ### gif_pipeline.py
 
-`python3 gif_pipeline.py` creates an interesting gif representation of the input image using different sized bottle caps.
+`$ python3 gif_pipeline.py` creates an interesting gif representation of the input image using different sized bottle caps.
 
 ### Arguments
 
--f [filename] allows the user to select a file from the input_images directory to use.
+`-f [filename]` allows the user to select a file from the input_images directory to use.
 
--t [integer] allows the user to specify a threshold to use when simplifying the colors in the image.
+`-t [integer]` allows the user to specify a threshold to use when simplifying the colors in the image.
 
--b [true or false] allows the user to add a preprocessing blur before the image colors are updated.
+`-b [true or false]` allows the user to add a preprocessing blur before the image colors are updated.
 
--l [integer] allows the user to select what size lens to use when making the bottlecaps.
+`-l [integer]` allows the user to select what size lens to use when making the bottlecaps. This option is ignored by gif_pipeline.py, as this pipeline has specific sizes already specified.
+
+### Example Command
+
+`$ python3 gif_pipeline.py -t 25 -f burlington-sunset.jpg -b false`
+
+This command will take the example image included in the repository, "burlington-sunset.jpg", not apply any input blur, and simplify the color palette with color threshold 25. From this simplified color input, a .gif image will be generated using a "bottle cap" mask, and the output will be saved in the output_gifs directory.
