@@ -9,7 +9,7 @@
 # Zachary Stone, February 2026
 ###########################################################
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 import pix_sort as PS
 import lens_mask as LM
 import pixel_basics as PB
@@ -21,7 +21,7 @@ LENS_RADII = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
 
 # Generate all the frames of the gif in order and return them in a list
 def makeGif(numLenses, inImg):
-    gifFrames = [None] * (numLenses * 2 + 1) # empty list
+    gifFrames = [0] * (numLenses * 2 + 1) # empty list
     for i in range(0,numLenses):
         # Do the lensing, save the frames for the gif
         frameA = numLenses-i-1
@@ -56,12 +56,13 @@ if __name__=="__main__":
         
 
     for fileName in IMAGE_FILES:
-        print(f"\nFILE: {fileName}")
+        print(f"\nPROCESSING FILE: {fileName}")
         saveDir = Path("./output_gifs")
         # Make the dir if it doesn't exist
         Path.mkdir(saveDir, exist_ok=True) 
+        # Open image and rotate if exif data specifies so
+        origImg = ImageOps.exif_transpose(Image.open(fileName))
         # Downsample the file. GIFs aren't mean to be high res.
-        origImg = Image.open(fileName)
         downsize = PB.sizeDown(origImg, 768)
         # Don't forget to close these things
         origImg.close()
@@ -77,6 +78,7 @@ if __name__=="__main__":
         
         # Generate the gif from the frames
         outGif = f"{saveDir}/{fileName.stem}.gif"
+        print(f"\nSAVING FILE: {outGif}")
         gifFrames[0].save(
             outGif,
             save_all=True,

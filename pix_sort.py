@@ -8,8 +8,7 @@
 # Zachary Stone, January 2026
 ###########################################################
 import numpy as np
-from PIL import Image, ImageFilter
-import sys
+from PIL import Image, ImageFilter, ImageOps
 from pathlib import Path
 import text_inputs as TI
 
@@ -17,6 +16,13 @@ import text_inputs as TI
 COLOR_MAP = np.zeros((256,256,256,3), dtype=np.uint8)
 REMAINING_TO_COLOR = np.ones((256,256,256),dtype=bool)
 RANGE_MASK = np.zeros((256,256,256),dtype=bool)
+
+# Reset all globals
+def resetGlobals():
+    global COLOR_MAP, REMAINING_TO_COLOR, RANGE_MASK
+    COLOR_MAP.fill(0)
+    REMAINING_TO_COLOR.fill(1)
+    RANGE_MASK.fill(0)
 
 # Go through global COLOR_MAP, assign all indices within threshold of [R,G,B] to [R,G,B]
 def updateColorMap(R,G,B, threshold):
@@ -58,7 +64,7 @@ def main(inImg, colorThresh,  blur):
     # our primary key a little complex, since we want GREATER COUNTS to take priority.
     # A simple solution to this is to make all counts negative, so greater magnitudes
     # have lower value, and thus get treated as higher priority.
-    # Since pixUni comes to us already sorted DARKEST first, the index of the color
+    # Since pixUni comes to us already sorted DARKEST COLOR first, the index of the color
     # in pixUni is our secondary key, where lower value (lower index) means DARKER color.
     
     # SORTING
@@ -100,17 +106,12 @@ def main(inImg, colorThresh,  blur):
             imgArr[row,col] = COLOR_MAP[R,G,B]
     ### THIS IS THE IMG MODIFICATION LOOP 
 
+    # Reset all globals. Batch jobs call main repeatedly, and data from previous images
+    # will contaminate further processing if not cleared.
+    resetGlobals()
+
     # Return the resulting image array
     return imgArr
-
-# Returns the index in sys.argv[] containing the value for the string desired argument
-def getArgIndx(strArg):
-    retVal = None
-    for i in range(0,len(sys.argv)):
-        if (sys.argv[i] == strArg) and (i < len(sys.argv) - 1):
-            retVal = i+1
-            break
-    return retVal
 
 # For execution as main module
 if __name__ == "__main__":
@@ -128,7 +129,8 @@ if __name__ == "__main__":
         f"Blur Option: {BLUR_OPT}\n" \
         f"Selected Image: {FILE_PATH.name}")
 
-    inImg = Image.open(FILE_PATH)
+    # Open image and rotate if exif data specifies so
+    inImg = ImageOps.exif_transpose(Image.open(FILE_PATH))
     outArr = main(inImg, COLOR_THRESH, BLUR_OPT)
     inImg.close()
     outImg = Image.fromarray(outArr)
