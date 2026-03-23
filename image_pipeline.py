@@ -1,7 +1,13 @@
-# I want to automate and chain together the execution of pix_sort and
-# lens_mask.py so I can just generate a bunch of images to view.
+###########################################################
+# image_pipeline.py
+# 
+# This program chains together the execution of pix_sort and
+# lens_mask to generate images composed of discrete bottle caps.
+#
+# Zachary Stone, January 2026
+###########################################################
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 import pix_sort as PS
 import lens_mask as LM
 import text_inputs as TI
@@ -9,6 +15,7 @@ import text_inputs as TI
 # GLOBALS
 IMAGE_FILES = []
 
+# For execution as main module
 if __name__=="__main__":
     IMAGES_DIR = "./input_images"
     OUTPUT_DIR = "./output_images"
@@ -35,24 +42,26 @@ if __name__=="__main__":
         
 
     for fileName in IMAGE_FILES:
-        print(f"\nFILE: {fileName}")
-        inImg = Image.open(fileName)
+        print(f"\nPROCESSING FILE: {fileName}")
+        # Open image and rotate if exif data specifies so
+        inImg = ImageOps.exif_transpose(Image.open(fileName))
         # Simplify the colors, save the new image
         threshSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}.PNG")
         if Path(threshSavePath).is_file():
-            print(f"{threshSavePath.name} exists") # file exists already
+            print(f"OUTPUT ALREADY EXISTS: {threshSavePath}") # file exists already
+            outImg = Image.open(threshSavePath)
         else:
             outArr = PS.main(inImg, COLOR_THRESH, BLUR_OPT)
             outImg = Image.fromarray(outArr)
             outImg.save(threshSavePath,format='PNG')
-            print(f"{threshSavePath.name} saved")
+            print(f"SAVING OUTPUT: {threshSavePath}")
 
         # Do the lensing, save the new image
         lensSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}-lens{LENS_SIZE}.PNG")
         if Path(lensSavePath).is_file():
-            print(f"{lensSavePath.name} exists") # file exists already
+            print(f"OUTPUT ALREADY EXISTS: {lensSavePath}") # file exists already
         else:
             outArr = LM.main(outImg, LENS_SIZE)
             outImg = Image.fromarray(outArr)
             outImg.save(lensSavePath,format='PNG')
-            print(f"{lensSavePath.name} saved")
+            print(f"SAVING OUTPUT: {lensSavePath}")
