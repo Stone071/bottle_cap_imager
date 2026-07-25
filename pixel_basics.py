@@ -43,3 +43,24 @@ def sizeDown(img, desiredHeight):
     h = desiredHeight
     downsize = img.resize((w,h), Image.LANCZOS)
     return downsize
+
+# Check if pixel 1 (a,b,c) is the same color as pixel 2 (d,e,f)
+def isSameRgb(a, b, c, d, e, f):
+    if (a == d and b == e and c == f): 
+        #print(f"a:{a} b:{b} c:{c} d:{d} e:{e} f:{f}")
+        #print("TRUE\n")
+        return True
+    else: 
+        return False
+
+# Returns the index in list where the pixel (r,g,b) resides.
+# If r, g, b is not in list, return None
+def findPixInList(thePix, list):
+    retVal = None
+    for i in range(0,len(list)):
+        if (isSameRgb(thePix[0], thePix[1], thePix[2], 
+                      list[i][0], list[i][1], list[i][2])):
+            #print(f"MATCH {i}, {thePix}:{list[i]}")
+            retVal = i
+            break
+    return retVal

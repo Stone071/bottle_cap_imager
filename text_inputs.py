@@ -57,7 +57,6 @@ def getInputArgs():
         BLUR_OPT = False
 
     # lens size
-        # input blur
     try:
         indx = getArgIndx("-l")
         if (indx != None): LENS_SIZE = int(sys.argv[indx])
@@ -65,4 +64,12 @@ def getInputArgs():
     except: 
         LENS_SIZE = 4
 
-    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE
+    # coloring book generator
+    try:
+        indx = getArgIndx("-c")
+        if (indx != None): COLORING_BOOK = True
+        else: COLORING_BOOK = False
+    except:
+        COLORING_BOOK = False
+
+    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK
