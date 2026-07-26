@@ -67,7 +67,7 @@ def getInputArgs():
     # coloring book generator
     try:
         indx = getArgIndx("-c")
-        if (indx != None): COLORING_BOOK = True
+        if (indx != None and sys.argv[indx].lower() == "true"): COLORING_BOOK = True
         else: COLORING_BOOK = False
     except:
         COLORING_BOOK = False

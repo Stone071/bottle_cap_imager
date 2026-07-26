@@ -36,11 +36,11 @@ if __name__=="__main__":
           f"Color Threshold: {COLOR_THRESH}\n" \
           f"Blur Option: {BLUR_OPT}\n" \
           f"Lens Size: {LENS_SIZE}\n"  \
+          f"Coloring Book: {COLORING_BOOK}\n" \
           "Selected Images:")
     for img in IMAGE_FILES:
         print(f" - {img.name}")
         
-
     for fileName in IMAGE_FILES:
         print(f"\nPROCESSING FILE: {fileName}")
         # Open image and rotate if exif data specifies so
@@ -57,7 +57,8 @@ if __name__=="__main__":
             print(f"SAVING OUTPUT: {threshSavePath}")
 
         # Do the lensing, save the new image
-        lensSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}-lens{LENS_SIZE}.PNG")
+        cbString = "-CB" if(COLORING_BOOK) else ""
+        lensSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}-lens{LENS_SIZE}{cbString}.PNG")
         if Path(lensSavePath).is_file():
             print(f"OUTPUT ALREADY EXISTS: {lensSavePath}") # file exists already
         else:
