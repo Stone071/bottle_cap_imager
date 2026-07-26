@@ -23,7 +23,7 @@ if __name__=="__main__":
     Path.mkdir(Path(OUTPUT_DIR), exist_ok=True) 
 
     # Get user's arguments or defaults
-    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK = TI.getInputArgs()
+    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE = TI.getInputArgs()
     
     # if no file specified, just use all
     if (FILE_PATH == None):
@@ -51,7 +51,7 @@ if __name__=="__main__":
             print(f"OUTPUT ALREADY EXISTS: {threshSavePath}") # file exists already
             outImg = Image.open(threshSavePath)
         else:
-            outArr = PS.main(inImg, COLOR_THRESH, BLUR_OPT)
+            outArr = PS.main(inImg, COLOR_THRESH, BLUR_OPT, VERBOSE_MODE)
             outImg = Image.fromarray(outArr)
             outImg.save(threshSavePath,format='PNG')
             print(f"SAVING OUTPUT: {threshSavePath}")
@@ -62,7 +62,7 @@ if __name__=="__main__":
         if Path(lensSavePath).is_file():
             print(f"OUTPUT ALREADY EXISTS: {lensSavePath}") # file exists already
         else:
-            outArr = LM.main(outImg, LENS_SIZE, COLORING_BOOK)
+            outArr = LM.main(outImg, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE)
             outImg = Image.fromarray(outArr)
             outImg.save(lensSavePath,format='PNG')
             print(f"SAVING OUTPUT: {lensSavePath}")

@@ -72,4 +72,12 @@ def getInputArgs():
     except:
         COLORING_BOOK = False
 
-    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK
+    # verbose mode
+    try:
+        indx = getArgIndx("-v")
+        if (indx != None and sys.argv[indx].lower() == "true"): VERBOSE_MODE = True
+        else: VERBOSE_MODE = False
+    except:
+        VERBOSE_MODE = False
+        
+    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE

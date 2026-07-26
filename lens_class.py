@@ -13,7 +13,7 @@ import pixel_basics as PB
 ### CLASSES
 # In this lens we use (row,col) coordinates to specify top left and bottom
 # right pixel of the lens's bounding box. It also has a radius and (R,G,B) fill
-class lens:
+class Lens:
     radius = 0
     tlPix = (0,0)
     brPix = (0,0)

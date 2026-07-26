@@ -17,8 +17,9 @@ from PIL import Image, ImageOps, ImageDraw
 import math
 import pixel_basics as PB
 import text_inputs as TI
-from lens_class import lens
+from lens_class import Lens
 from pathlib import Path
+from tqdm import trange, tqdm
 
 ### GLOBALS
 RGB_WHITE = (255,255,255)
@@ -62,12 +63,12 @@ def calcNumKeyRows(imgWidth, numColors, circleRad):
 #   circleRad - the radius for the lenses to apply
 # Outputs:
 #    numpy ndarray in mxnx3, where third dimension is [R G B]
-def main(inImg, circleRad, coloringBook):
+def main(inImg, circleRad, coloringBook, verbose):
     # Get a 2D array of the pixel (r,g,b) tuples
     imArray = np.asarray(inImg).copy() # copy so not readonly
     # Document the color palette of all colors in the image
     colorPalette, pixUniDims = np.unique(imArray.reshape(-1,3), axis=0, return_counts=True)
-    #print(f"Color Palette: {colorPalette}")
+    if (verbose): print(f"Color Palette: {colorPalette}")
 
     # Find number of lenses spanning the height, width of the image
     numLensRows, numLensCols = getNumLenses(imArray, circleRad)
@@ -76,7 +77,8 @@ def main(inImg, circleRad, coloringBook):
     # Populate lensArr by viewing the pixels which will fall under the lens
     # and documenting the window of pixels affected, the color mode, and the number
     # of this mode.
-    for rowLens in range(0,numLensRows):
+    print("CREATING LENSES...")
+    for rowLens in trange(0,numLensRows):
         for colLens in range(0,numLensCols):
             # 1. Make a view of the pixels in the lensed area
             # pixels will be specified in (row,col) form
@@ -88,11 +90,11 @@ def main(inImg, circleRad, coloringBook):
             # 2. Flatten it and get the mode
             imArrSection = imArrSection.reshape(-1,3)
             sectionMode = PB.getMode(imArrSection)[0]
-            #print(f"SECTION: {rowLens,colLens}, MODE: {sectionMode}")
+            if (verbose): print(f"SECTION: {rowLens,colLens}, MODE: {sectionMode}")
 
             # Capture the data for the lens
             modeNum = PB.findPixInList(sectionMode, colorPalette)
-            lensArr[rowLens, colLens] = lens(circleRad, tlPix, brPix, sectionMode, modeNum)
+            lensArr[rowLens, colLens] = Lens(circleRad, tlPix, brPix, sectionMode, modeNum)
 
     # Given that all the lenses are the same size, we can just generate the inLens and outLens
     # masks for one of the lenses and reuse them over and over
@@ -100,7 +102,8 @@ def main(inImg, circleRad, coloringBook):
     commonOutLensMask = lensArr[0][0].genOutLensMask()
 
     # Now we can go ahead and recolor the image by looking through all the lenses
-    for currLens in lensArr.flatten():
+    print("RECOLORING LENSES...")
+    for currLens in tqdm(lensArr.flatten()):
         # Go ahead and grab a view of imArray so we can 0 index all our lens masks
         lensBoxView = imArray[currLens.tlPix[0]:currLens.brPix[0], currLens.tlPix[1]:currLens.brPix[1]]
         # Consider lensBoxView might be less than the size of a whole lens, and we
@@ -136,12 +139,13 @@ def main(inImg, circleRad, coloringBook):
         # The key row will be centered, not beginning at left edge of image
         colOffset = math.ceil((imgWidth*(1-KEY_WIDTH_TO_IMAGE_WIDTH))/2)
         # Set up the lenses
-        for colorIter in range(0,numColors):
+        print("CREATING COLOR KEY...")
+        for colorIter in trange(0,numColors):
             currentKeyRow = math.floor(colorIter/numKeysPerRow)
             keyIndexInRow = colorIter % numKeysPerRow
             tlPix = (np.shape(imArray)[0]-circleRad*2*(numKeyRows-currentKeyRow), colOffset+keyIndexInRow*circleRad*2)
             brPix = (tlPix[0]+circleRad*2, tlPix[1]+circleRad*2)
-            keyRowLenses[currentKeyRow][keyIndexInRow] = lens(circleRad, tlPix, brPix, colorPalette[colorIter], colorIter)
+            keyRowLenses[currentKeyRow][keyIndexInRow] = Lens(circleRad, tlPix, brPix, colorPalette[colorIter], colorIter)
 
         # Color the key row
         for keyLens in keyRowLenses[keyRowLenses != None].flatten(): #ignore uninitialized lenses at end of key
@@ -150,7 +154,8 @@ def main(inImg, circleRad, coloringBook):
         # Do all the color number annotation
         imgForText = Image.fromarray(imArray)
         imgDraw = ImageDraw.Draw(imgForText)
-        for currLens in lensArr.flatten():
+        print("ANNOTATING COLOR NUMBERS...")
+        for currLens in tqdm(lensArr.flatten()):
             # Number the lenses for the actual image
             centerCol = currLens.tlPix[1]+currLens.radius
             centerRow = currLens.tlPix[0]+currLens.radius
@@ -171,7 +176,7 @@ def main(inImg, circleRad, coloringBook):
 if __name__ == "__main__":
     IMAGES_DIR = "./input_images"
     # Get user's arguments or defaults
-    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK = TI.getInputArgs()
+    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE = TI.getInputArgs()
     if (FILE_PATH != None):
         FILE_PATH = Path(f"{IMAGES_DIR}/{FILE_PATH}")
     else:
@@ -183,7 +188,7 @@ if __name__ == "__main__":
         f"Selected Image: {FILE_PATH.name}")
     
     inImg = ImageOps.exif_transpose(Image.open(FILE_PATH))
-    outArr = main(inImg, LENS_SIZE, COLORING_BOOK)
+    outArr = main(inImg, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE)
     inImg.close()
     outImg = Image.fromarray(outArr)
     outImg.show()
