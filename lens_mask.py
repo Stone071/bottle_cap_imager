@@ -23,6 +23,9 @@ from pathlib import Path
 ### GLOBALS
 RGB_WHITE = (255,255,255)
 RGB_BLACK = (0,0,0)
+KEY_WIDTH_TO_IMAGE_WIDTH = (2/3)
+KEY_TEXT_COLOR = RGB_WHITE
+IMG_TEXT_COLOR = RGB_BLACK
 
 ### HELPER FUNCS
 # Determine the number of lenses spanning the width and length of the image
@@ -35,13 +38,23 @@ def getNumLenses(imgArray, circRad):
     return (rowLenses, colLenses)
 
 # Extend imgArray to include a row at the bottom as the key
-# NOTE: It's possible we will have enough colors that one row won't be enough room
-def extendImageForKey(imArray, circleRad):
+def extendImageForKey(imArray, bufferSize, circleRad, numKeyRows):
     imgDims = np.shape(imArray)
-    #print(f"Orig array dims: {imgDims[0]} {imgDims[1]} {imgDims[2]}")
-    keyRowArray = np.full((circleRad*2, imgDims[1], 3), RGB_BLACK, dtype=np.uint8)
-    extendedArr = np.vstack((imArray, keyRowArray))
+    # Put in some blank area between image and key
+    bufferArray = np.full((bufferSize, imgDims[1], 3), RGB_BLACK, dtype=np.uint8) 
+    keyRowArray = np.full((circleRad*2*numKeyRows, imgDims[1], 3), RGB_BLACK, dtype=np.uint8)
+    extendedArr = np.vstack((imArray, bufferArray, keyRowArray))
     return extendedArr
+
+# Determine how many rows of lenses we need to display the color palette
+# Return the number of keys per row and number of rows
+def calcNumKeyRows(imgWidth, numColors, circleRad):
+    # Let's use 2/3 of the image width for the key
+    keyRowWidth = math.ceil(imgWidth*KEY_WIDTH_TO_IMAGE_WIDTH)
+    numKeysPerRow = math.floor(keyRowWidth/(circleRad*2))
+    numRows = math.ceil(numColors/numKeysPerRow)
+    return numRows, numKeysPerRow
+
 
 ### MAIN ###
 # Inputs:
@@ -113,22 +126,26 @@ def main(inImg, circleRad, coloringBook):
     # If doing a coloring book image, add the key row at the bottom
     # and then label the lenses with numbers
     if (coloringBook):
-        # Color in the key row
-        startRow = np.shape(imArray)[0]
-        endRow = startRow + circleRad*2
-        startCol = 0
-        endCol = startCol + circleRad*2
-        imArray = extendImageForKey(imArray, circleRad)
-        # NOTE: Consider at some point that we may have more key colors than fit on one line
-        keyRowLenses = np.empty((1,numLensCols), dtype=object)
-        # paint the key row the appropriate colors
-        for colorIter in range(0,len(colorPalette)):
-            imArray[startRow:endRow, startCol:endCol] = colorPalette[colorIter]
-            # Make some key row lenses for easy numbering
-            keyRowLenses[0][colorIter] = lens(circleRad,(startRow,startCol),(endRow,endCol),
-                                           colorPalette[colorIter], colorIter)
-            startCol = endCol
-            endCol += circleRad*2
+        # Add pixels to the bottom of the image for the key row
+        bufferSize = 30
+        numColors = len(colorPalette)
+        imgWidth = np.shape(imArray)[1]
+        numKeyRows, numKeysPerRow = calcNumKeyRows(imgWidth, numColors, circleRad)
+        imArray = extendImageForKey(imArray, bufferSize, circleRad, numKeyRows)
+        keyRowLenses = np.empty((numKeyRows,numKeysPerRow), dtype=object)
+        # The key row will be centered, not beginning at left edge of image
+        colOffset = math.ceil((imgWidth*(1-KEY_WIDTH_TO_IMAGE_WIDTH))/2)
+        # Set up the lenses
+        for colorIter in range(0,numColors):
+            currentKeyRow = math.floor(colorIter/numKeysPerRow)
+            keyIndexInRow = colorIter % numKeysPerRow
+            tlPix = (np.shape(imArray)[0]-circleRad*2*(numKeyRows-currentKeyRow), colOffset+keyIndexInRow*circleRad*2)
+            brPix = (tlPix[0]+circleRad*2, tlPix[1]+circleRad*2)
+            keyRowLenses[currentKeyRow][keyIndexInRow] = lens(circleRad, tlPix, brPix, colorPalette[colorIter], colorIter)
+
+        # Color the key row
+        for keyLens in keyRowLenses[keyRowLenses != None].flatten(): #ignore uninitialized lenses at end of key
+            imArray[keyLens.tlPix[0]:keyLens.brPix[0], keyLens.tlPix[1]:keyLens.brPix[1]] = keyLens.fillColor
 
         # Do all the color number annotation
         imgForText = Image.fromarray(imArray)
@@ -138,12 +155,12 @@ def main(inImg, circleRad, coloringBook):
             centerCol = currLens.tlPix[1]+currLens.radius
             centerRow = currLens.tlPix[0]+currLens.radius
             # DRAW TAKES COL,ROW. Anchor the horizontal and vertical midpoints of the text on the given position
-            imgDraw.text((centerCol, centerRow), str(currLens.fillNum), RGB_BLACK, anchor="mm", font_size=8)
-        for keyLens in keyRowLenses[keyRowLenses != None].flatten(): # mask off the lenses which are not populated
+            imgDraw.text((centerCol, centerRow), str(currLens.fillNum), IMG_TEXT_COLOR, anchor="mm", font_size=8)
+        for keyLens in keyRowLenses[keyRowLenses != None].flatten():
             # Number the lenses for the key row
             centerCol = keyLens.tlPix[1]+keyLens.radius
             centerRow = keyLens.tlPix[0]+keyLens.radius
-            imgDraw.text((centerCol, centerRow), str(keyLens.fillNum), RGB_WHITE, anchor="mm", font_size=8)
+            imgDraw.text((centerCol, centerRow), str(keyLens.fillNum), KEY_TEXT_COLOR, anchor="mm", font_size=8)
         
         # Update imArray to include all the annotation
         imArray = np.asarray(imgForText).copy()
