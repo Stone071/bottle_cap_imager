@@ -27,6 +27,9 @@ RGB_BLACK = (0,0,0)
 KEY_WIDTH_TO_IMAGE_WIDTH = (2/3)
 KEY_TEXT_COLOR = RGB_WHITE
 IMG_TEXT_COLOR = RGB_BLACK
+MAX_FONT_SIZE = 32
+MIN_FONT_SIZE = 3
+FONT_TO_LENS_RATIO = (2/3)
 
 ### HELPER FUNCS
 # Determine the number of lenses spanning the width and length of the image
@@ -55,6 +58,18 @@ def calcNumKeyRows(imgWidth, numColors, circleRad):
     numKeysPerRow = math.floor(keyRowWidth/(circleRad*2))
     numRows = math.ceil(numColors/numKeysPerRow)
     return numRows, numKeysPerRow
+
+# When we annotate color numbers in the lenses, the font size should scale
+# with the size of the lens.
+def findBestFontSize(imgDraw, circleRad):
+    sizeThresh = circleRad*FONT_TO_LENS_RATIO
+    for i in range(MAX_FONT_SIZE, MIN_FONT_SIZE,-1):
+        boundingBox = imgDraw.textbbox((0,0), "0", font_size=i)
+        #width = boundingBox[2]-boundingBox[0]
+        height = boundingBox[3]-boundingBox[1]
+        if (height <= sizeThresh):
+            break;
+    return i
 
 
 ### MAIN ###
@@ -137,7 +152,12 @@ def main(inImg, circleRad, coloringBook, verbose):
         imArray = extendImageForKey(imArray, bufferSize, circleRad, numKeyRows)
         keyRowLenses = np.empty((numKeyRows,numKeysPerRow), dtype=object)
         # The key row will be centered, not beginning at left edge of image
-        colOffset = math.ceil((imgWidth*(1-KEY_WIDTH_TO_IMAGE_WIDTH))/2)
+        if (numKeyRows == 1):
+            keyRowWidth = circleRad*2*numColors
+            remainingSpace = imgWidth-keyRowWidth
+            colOffset = math.ceil(remainingSpace/2)
+        else:
+            colOffset = math.ceil((imgWidth*(1-KEY_WIDTH_TO_IMAGE_WIDTH))/2)
         # Set up the lenses
         print("CREATING COLOR KEY...")
         for colorIter in trange(0,numColors):
@@ -154,18 +174,20 @@ def main(inImg, circleRad, coloringBook, verbose):
         # Do all the color number annotation
         imgForText = Image.fromarray(imArray)
         imgDraw = ImageDraw.Draw(imgForText)
+        fontSize = findBestFontSize(imgDraw, circleRad)
+        if (verbose): print(f"FONT SIZE: {fontSize}")
         print("ANNOTATING COLOR NUMBERS...")
         for currLens in tqdm(lensArr.flatten()):
             # Number the lenses for the actual image
             centerCol = currLens.tlPix[1]+currLens.radius
             centerRow = currLens.tlPix[0]+currLens.radius
             # DRAW TAKES COL,ROW. Anchor the horizontal and vertical midpoints of the text on the given position
-            imgDraw.text((centerCol, centerRow), str(currLens.fillNum), IMG_TEXT_COLOR, anchor="mm", font_size=8)
+            imgDraw.text((centerCol, centerRow), str(currLens.fillNum), IMG_TEXT_COLOR, anchor="mm", font_size=fontSize)
         for keyLens in keyRowLenses[keyRowLenses != None].flatten():
             # Number the lenses for the key row
             centerCol = keyLens.tlPix[1]+keyLens.radius
             centerRow = keyLens.tlPix[0]+keyLens.radius
-            imgDraw.text((centerCol, centerRow), str(keyLens.fillNum), KEY_TEXT_COLOR, anchor="mm", font_size=8)
+            imgDraw.text((centerCol, centerRow), str(keyLens.fillNum), KEY_TEXT_COLOR, anchor="mm", font_size=fontSize)
         
         # Update imArray to include all the annotation
         imArray = np.asarray(imgForText).copy()
