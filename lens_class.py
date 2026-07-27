@@ -15,6 +15,7 @@ import pixel_basics as PB
 # right pixel of the lens's bounding box. It also has a radius and (R,G,B) fill
 class Lens:
     radius = 0
+    diameter = 0
     tlPix = (0,0)
     brPix = (0,0)
     fillColor = (0,0,0)
@@ -26,13 +27,14 @@ class Lens:
 
     def __init__(self, radius, tlPix, brPix, fillColor, fillNum):
         self.radius = radius
+        self.diameter = int(2*radius)
         self.tlPix = tlPix # (row, column)
         self.brPix = brPix # (row, column)
         self.fillColor = fillColor # [R G B]
         self.fillNum = fillNum # The number associated with this color    
-        self.inLensMask = np.zeros((radius*2, radius*2), dtype=bool)
-        self.outLensMask = np.zeros((radius*2, radius*2), dtype=bool)
-        self.perimeterLensMask = np.zeros((radius*2,radius*2), dtype=bool)
+        self.inLensMask = np.zeros((self.diameter, self.diameter), dtype=bool)
+        self.outLensMask = np.zeros((self.diameter, self.diameter), dtype=bool)
+        self.perimeterLensMask = np.zeros((self.diameter,self.diameter), dtype=bool)
 
     def setInLensMask(self, arr):
         self.inLensMask = arr
@@ -49,8 +51,8 @@ class Lens:
             return self.inLensMask
         # Check valid radius
         elif (self.radius > 0):
-            for m in range(0,self.radius*2):
-                for n in range(0, self.radius*2):
+            for m in range(0,self.diameter):
+                for n in range(0, self.diameter):
                     # just use a^2 + b^2 = r^2 generate the mask, where the "origin" is at self.radius
                     # since 0,0 is the top left hand corner
                     sqDist = (PB.ezDiff(m, self.radius)**2 + PB.ezDiff(n,self.radius)**2)
@@ -65,8 +67,8 @@ class Lens:
 
     def genPerimeterLensMask(self):
         if (self.radius > 0):
-            for m in range(0,self.radius*2):
-                for n in range(0, self.radius*2):
+            for m in range(0,self.diameter):
+                for n in range(0, self.diameter):
                     sqDist = (PB.ezDiff(m, self.radius)**2 + PB.ezDiff(n,self.radius)**2)
                     if (sqDist >= (self.radius)**2) and (sqDist <= (self.radius+self.perimeterWidth)**2):
                         self.perimeterLensMask[m,n] = True

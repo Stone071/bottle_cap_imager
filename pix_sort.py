@@ -82,7 +82,7 @@ def main(inImg, colorThresh,  blur, verbose):
     # 3. If it has not been mapped to another color, treat it as a MODE, and map other colors to it.
     # 4. After looking through all unique pixel colors, your COLOR_MAP will be complete.
     print("MAPPING COLORS...")
-    for i in trange(0,pixUniDims[0]):
+    for i in trange(0,pixUniDims[0], disable=verbose):
         uniqueColor = pixUni[accessList[i]]
         R = uniqueColor[0]
         G = uniqueColor[1]
@@ -101,7 +101,7 @@ def main(inImg, colorThresh,  blur, verbose):
 
     ### THIS IS THE IMG MODIFICATION LOOP
     print("UPDATING IMAGE...")
-    for row in trange(0,imgDims[0]):
+    for row in trange(0,imgDims[0], disable=verbose):
         for col in range(0,imgDims[1]):
             R = imgArr[row,col,0]
             G = imgArr[row,col,1]

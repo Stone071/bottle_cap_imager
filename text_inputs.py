@@ -7,6 +7,7 @@
 # Zachary Stone, March 2026
 ###########################################################
 import sys
+import math
 from pathlib import Path
 
 # Get all images in the given directory
@@ -59,10 +60,14 @@ def getInputArgs():
     # lens size
     try:
         indx = getArgIndx("-l")
-        if (indx != None): LENS_SIZE = int(sys.argv[indx])
-        else: LENS_SIZE = 4
+        if (indx != None): 
+            LENS_SIZE = float(sys.argv[indx])
+            lensFrac = LENS_SIZE % 1
+            if (lensFrac < 0.5): LENS_SIZE = int(LENS_SIZE)
+            else: LENS_SIZE = float(int(LENS_SIZE)+0.5)
+        else: LENS_SIZE = 6.5
     except: 
-        LENS_SIZE = 4
+        LENS_SIZE = 6.5
 
     # coloring book generator
     try:
