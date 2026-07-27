@@ -7,6 +7,7 @@
 # Zachary Stone, March 2026
 ###########################################################
 import sys
+import math
 from pathlib import Path
 
 # Get all images in the given directory
@@ -57,12 +58,31 @@ def getInputArgs():
         BLUR_OPT = False
 
     # lens size
-        # input blur
     try:
         indx = getArgIndx("-l")
-        if (indx != None): LENS_SIZE = int(sys.argv[indx])
-        else: LENS_SIZE = 4
+        if (indx != None): 
+            LENS_SIZE = float(sys.argv[indx])
+            lensFrac = LENS_SIZE % 1
+            if (lensFrac < 0.5): LENS_SIZE = int(LENS_SIZE)
+            else: LENS_SIZE = float(int(LENS_SIZE)+0.5)
+        else: LENS_SIZE = 6.5
     except: 
-        LENS_SIZE = 4
+        LENS_SIZE = 6.5
 
-    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE
+    # coloring book generator
+    try:
+        indx = getArgIndx("-c")
+        if (indx != None and sys.argv[indx].lower() == "true"): COLORING_BOOK = True
+        else: COLORING_BOOK = False
+    except:
+        COLORING_BOOK = False
+
+    # verbose mode
+    try:
+        indx = getArgIndx("-v")
+        if (indx != None and sys.argv[indx].lower() == "true"): VERBOSE_MODE = True
+        else: VERBOSE_MODE = False
+    except:
+        VERBOSE_MODE = False
+        
+    return FILE_NAME, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE

@@ -19,10 +19,11 @@ Additionally, gif_pipeline.py creates many images from a single input with diffe
 
 - Pillow
 - numpy
+- tqdm
 
 ### Acquiring Dependencies
 
-`$ apt install python3-pil python3-numpy`
+`$ apt install python3-pil python3-numpy python3-tqdm`
 
 ## Usage
 
@@ -52,8 +53,16 @@ Additionally, gif_pipeline.py creates many images from a single input with diffe
 
 `-l [integer]` allows the user to select what size lens to use when making the bottlecaps. This option is ignored by gif_pipeline.py, as this pipeline has specific sizes already specified.
 
-### Example Command
+`-c [true or false]` allows coloring book mode, where the resultant image is a color by numbers.
+
+`-v [true or false]` allows toggling verbose mode, where more information about the recoloring is given.
+
+### Example Commands
 
 `$ python3 gif_pipeline.py -t 25 -f burlington-sunset.jpg -b false`
 
 This command will take the example image included in the repository, "burlington-sunset.jpg", not apply any input blur, and simplify the color palette with color threshold 25. From this simplified color input, a .gif image will be generated using a "bottle cap" mask, and the output will be saved in the output_gifs directory.
+
+`$ python3 image_pipeline.py -t 30 -l 16 -f burlington-sunset.jpg -c true`
+
+This command will take the example image included in the repository, "burlington-sunset.jpg" and simplify the color palette using color threshold 30. From this simplified color input, a color-by-numbers style image will be generated which can be printed and colored in.

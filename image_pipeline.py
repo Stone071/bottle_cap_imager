@@ -23,7 +23,7 @@ if __name__=="__main__":
     Path.mkdir(Path(OUTPUT_DIR), exist_ok=True) 
 
     # Get user's arguments or defaults
-    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE = TI.getInputArgs()
+    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE = TI.getInputArgs()
     
     # if no file specified, just use all
     if (FILE_PATH == None):
@@ -36,11 +36,11 @@ if __name__=="__main__":
           f"Color Threshold: {COLOR_THRESH}\n" \
           f"Blur Option: {BLUR_OPT}\n" \
           f"Lens Size: {LENS_SIZE}\n"  \
+          f"Coloring Book: {COLORING_BOOK}\n" \
           "Selected Images:")
     for img in IMAGE_FILES:
         print(f" - {img.name}")
         
-
     for fileName in IMAGE_FILES:
         print(f"\nPROCESSING FILE: {fileName}")
         # Open image and rotate if exif data specifies so
@@ -51,17 +51,18 @@ if __name__=="__main__":
             print(f"OUTPUT ALREADY EXISTS: {threshSavePath}") # file exists already
             outImg = Image.open(threshSavePath)
         else:
-            outArr = PS.main(inImg, COLOR_THRESH, BLUR_OPT)
+            outArr = PS.main(inImg, COLOR_THRESH, BLUR_OPT, VERBOSE_MODE)
             outImg = Image.fromarray(outArr)
             outImg.save(threshSavePath,format='PNG')
             print(f"SAVING OUTPUT: {threshSavePath}")
 
         # Do the lensing, save the new image
-        lensSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}-lens{LENS_SIZE}.PNG")
+        cbString = "-CB" if(COLORING_BOOK) else ""
+        lensSavePath = Path(f"{OUTPUT_DIR}/{fileName.stem}-thresh{COLOR_THRESH}-lens{LENS_SIZE}{cbString}.PNG")
         if Path(lensSavePath).is_file():
             print(f"OUTPUT ALREADY EXISTS: {lensSavePath}") # file exists already
         else:
-            outArr = LM.main(outImg, LENS_SIZE)
+            outArr = LM.main(outImg, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE)
             outImg = Image.fromarray(outArr)
             outImg.save(lensSavePath,format='PNG')
             print(f"SAVING OUTPUT: {lensSavePath}")

@@ -1,9 +1,9 @@
 ###########################################################
 # lens_mask.py
 # 
-# This program simplifies the colors in an image using a threshold.
-# The algorithm finds successive [R G B] modes of the image, then
-# turns all pixels within threshold of the mode the same color as the mode.
+# This program takes an image and sections it into a grid of
+# circular lenses, then finds the most common pixel in each
+# lens and makes every pixel in the lens that color.
 #
 # Zachary Stone, January 2026
 ###########################################################
@@ -11,50 +11,67 @@
 # NOTE: THIS IS STILL NOT THE END GOAL. I want the bottle caps to fill
 # the color blobs, not be on an even grid.
 
+### IMPORTS
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps, ImageDraw
 import math
 import pixel_basics as PB
 import text_inputs as TI
+from lens_class import Lens
 from pathlib import Path
+from tqdm import trange, tqdm
 
-# GLOBALS
+### GLOBALS
 RGB_WHITE = (255,255,255)
 RGB_BLACK = (0,0,0)
+OUT_LENS_FILL_COLOR = RGB_BLACK
+KEY_TEXT_COLOR = RGB_WHITE
+IMG_TEXT_COLOR = RGB_BLACK
+MAX_FONT_SIZE = 32
+MIN_FONT_SIZE = 3
+FONT_TO_LENS_RATIO = (7/8)
+KEY_WIDTH_TO_IMAGE_WIDTH = (3/4)
 
-# Determine if a given pixel specified by coordinates [m,n] is within the bottle
-# of size circRad centered at [centerRow, centerCol]
-def inLens(m,n,circRad,centerRow,centerCol):
-    if (((PB.ezDiff(m,centerRow))**2+(PB.ezDiff(n,centerCol))**2) <= circRad**2):
-        return True
-    else:
-        return False
-
+### HELPER FUNCS
 # Determine the number of lenses spanning the width and length of the image
+# Do not return fractional numbers. Only the number of whole lenses.
 def getNumLenses(imgArray, circRad):
     dims = np.shape(imgArray)
     circDiameter = circRad * 2
     # Calc number of lenses
-    rowLenses = math.ceil(dims[0] / circDiameter)
-    colLenses = math.ceil(dims[1] / circDiameter)
-    # Let's start with bucketsize for area of circle
+    rowLenses = math.floor(dims[0] / circDiameter)
+    colLenses = math.floor(dims[1] / circDiameter)
     return (rowLenses, colLenses)
 
+# Extend imgArray to include a row at the bottom as the key
+def extendImageForKey(imArray, bufferSize, circleDiam, numKeyRows):
+    imgDims = np.shape(imArray)
+    # Put in some blank area between image and key
+    bufferArray = np.full((bufferSize, imgDims[1], 3), RGB_WHITE, dtype=np.uint8) 
+    keyRowArray = np.full((circleDiam*numKeyRows, imgDims[1], 3), RGB_WHITE, dtype=np.uint8)
+    extendedArr = np.vstack((imArray, bufferArray, keyRowArray))
+    return extendedArr
 
-# Check the image dimensions so no out of bounds writes
-def checkEndpoints(imgDims, brPix):
-    rowLim = imgDims[0]
-    colLim = imgDims[1]
-    if (brPix[0] < rowLim): 
-        lensRowEnd = brPix[0]
-    else: 
-        lensRowEnd = rowLim
+# Determine how many rows of lenses we need to display the color palette
+# Return the number of keys per row and number of rows
+def calcNumKeyRows(imgWidth, numColors, circleDiam):
+    # Let's use 2/3 of the image width for the key
+    keyRowWidth = math.ceil(imgWidth*KEY_WIDTH_TO_IMAGE_WIDTH)
+    numKeysPerRow = math.floor(keyRowWidth/(circleDiam))
+    numRows = math.ceil(numColors/numKeysPerRow)
+    return numRows, numKeysPerRow
 
-    if (brPix[1] < colLim):
-        lensColEnd = brPix[1]
-    else:
-        lensColEnd = colLim
-    return (lensRowEnd,lensColEnd)
+# When we annotate color numbers in the lenses, the font size should scale
+# with the size of the lens.
+def findBestFontSize(imgDraw, circleRad):
+    sizeThresh = circleRad*FONT_TO_LENS_RATIO
+    for i in range(MAX_FONT_SIZE, MIN_FONT_SIZE,-1):
+        boundingBox = imgDraw.textbbox((0,0), "0", font_size=i)
+        #width = boundingBox[2]-boundingBox[0]
+        height = boundingBox[3]-boundingBox[1]
+        if (height <= sizeThresh):
+            break;
+    return i
 
 
 ### MAIN ###
@@ -63,49 +80,129 @@ def checkEndpoints(imgDims, brPix):
 #   circleRad - the radius for the lenses to apply
 # Outputs:
 #    numpy ndarray in mxnx3, where third dimension is [R G B]
-def main(inImg, circleRad):
+def main(inImg, circleRad, coloringBook, verbose):
+    OUT_LENS_FILL_COLOR = RGB_WHITE if coloringBook else RGB_BLACK
+    circleDiam = int(circleRad*2)
     # Get a 2D array of the pixel (r,g,b) tuples
     imArray = np.asarray(inImg).copy() # copy so not readonly
-    imgDims = np.shape(imArray)
+    # Document the color palette of all colors in the image
+    colorPalette, pixUniDims = np.unique(imArray.reshape(-1,3), axis=0, return_counts=True)
+    if (verbose): print(f"Color Palette: {colorPalette}")
 
-    # Create a numpy array which can be used as buckets to hold all
-    # the pixel colors contained in each lens.
-    rowBuckets, colBuckets = getNumLenses(imArray, circleRad)
+    # Find number of lenses spanning the height, width of the image
+    numLensRows, numLensCols = getNumLenses(imArray, circleRad)
+    rowOffset = (math.floor((np.shape(imArray)[0]-numLensRows*circleDiam)/2))
+    colOffset = (math.floor((np.shape(imArray)[1]-(numLensCols*circleDiam))/2))
+    lensArr = np.empty((numLensRows, numLensCols), dtype=object)
 
-    # I think what we need to do is to separate the image into lens sections at the get go, then get the MODE
-    # for each section, then look through the pixels in each section and recolor.
-    for rowLens in range(0,rowBuckets):
-        for colLens in range(0,colBuckets):
-            # 1. Make a sub-array of the pixels in the lensed area
+    # Populate lensArr by viewing the pixels which will fall under the lens
+    # and documenting the window of pixels affected, the color mode, and the number
+    # of this mode.
+    print("CREATING LENSES...")
+    for rowLens in trange(0,numLensRows, disable=verbose):
+        for colLens in range(0,numLensCols):
+            # 1. Make a view of the pixels in the lensed area
             # pixels will be specified in (row,col) form
-            tlPix = (rowLens*circleRad*2, colLens*circleRad*2)
-            # this form specifies the bottom right pixel as the bottom right 
-            # pixel which is just outside the current lens. I think this is fine, 
-            # since we will be using this in range(), where the upper limit is 
-            # not included in the range.
-            brPix = ((rowLens+1)*circleRad*2,(colLens+1)*circleRad*2)
+            tlPix = (rowLens*circleDiam+rowOffset, colLens*circleDiam+colOffset)
+            brPix = ((rowLens+1)*circleDiam+rowOffset,(colLens+1)*circleDiam+colOffset)
             #print(f"tlPix {tlPix}, brPix {brPix}")
             imArrSection = imArray[tlPix[0]:brPix[0], tlPix[1]:brPix[1]]
 
-            # 2. Flatten it
-            flatSection = imArrSection.reshape(-1,3)
+            # 2. Flatten it and get the mode
+            imArrSection = imArrSection.reshape(-1,3)
+            sectionMode = PB.getMode(imArrSection)[0]
+            if (verbose): print(f"SECTION: {rowLens,colLens}, MODE: {sectionMode}")
 
-            # 3. Get the mode
-            sectionMode = PB.getMode(flatSection)
-            #print(f"SECTION: {rowLens,colLens}, MODE: {sectionMode[0]}")
+            # Capture the data for the lens
+            modeNum = PB.findPixInList(sectionMode, colorPalette)
+            lensArr[rowLens, colLens] = Lens(circleRad, tlPix, brPix, sectionMode, modeNum)
 
-            # 4. Recolor the pixels. pixels outside the lens are black, pixels 
-            #    inside the lens are MODE
-            centerRow = tlPix[0]+circleRad
-            centerCol = tlPix[1]+circleRad
-            # ensure no out of bounds writes
-            lensRowEnd,lensColEnd = checkEndpoints(imgDims,brPix)
-            for i in range(tlPix[0],lensRowEnd):
-                for j in range(tlPix[1],lensColEnd):
-                    if(inLens(i,j,circleRad,centerRow,centerCol)):
-                        imArray[i,j] = sectionMode[0]
-                    else:
-                        imArray[i,j] = RGB_BLACK
+    # Go ahead and blank the image before recreating it from the lenses
+    imArray[:] = OUT_LENS_FILL_COLOR
+    # Given that all the lenses are the same size, we can just generate the inLens and outLens
+    # masks for one of the lenses and reuse them over and over
+    commonInLensMask = lensArr[0][0].genInLensMask()
+    #commonOutLensMask = lensArr[0][0].genOutLensMask()
+    if (coloringBook): commonPerimeterLensMask = lensArr[0][0].genPerimeterLensMask()
+
+    # Now we can go ahead and recolor the image by looking through all the lenses
+    print("RECOLORING LENSES...")
+    for currLens in tqdm(lensArr.flatten(), disable=verbose):
+        # Go ahead and grab a view of imArray so we can 0 index all our lens masks
+        lensBoxView = imArray[currLens.tlPix[0]:currLens.brPix[0], currLens.tlPix[1]:currLens.brPix[1]]
+        # Consider lensBoxView might be less than the size of a whole lens, and we
+        # need to adjust the lens mask for that.
+        boxViewDims = np.shape(lensBoxView)
+        lensMaskDims = np.shape(commonInLensMask)
+        #print(f"BOX DIMS: {boxViewDims}\nLENS DIMS: {lensMaskDims}")
+        if (boxViewDims[0] == lensMaskDims[0] and boxViewDims[1] == lensMaskDims[1]):
+            adjInLensMask = commonInLensMask
+            #adjOutLensMask = commonOutLensMask
+            if (coloringBook): adjPerimeterLensMask = commonPerimeterLensMask
+        else:
+            adjInLensMask = commonInLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
+            #adjOutLensMask = commonOutLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
+            if (coloringBook): adjPerimeterLensMask = commonPerimeterLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
+
+        # Mask by what's in the lens and recolor
+        if(coloringBook):
+            # Make everything white except the lens perimeter
+            #lensBoxView[adjInLensMask | adjOutLensMask] = OUT_LENS_FILL_COLOR
+            lensBoxView[adjPerimeterLensMask] = RGB_BLACK
+        else:    
+            # Everything outside the lens is fill color
+            lensBoxView[adjInLensMask] = currLens.fillColor
+
+    # If doing a coloring book image, add the key row at the bottom
+    # and then label the lenses with numbers
+    if (coloringBook):
+        # Add pixels to the bottom of the image for the key row
+        bufferSize = circleDiam
+        numColors = len(colorPalette)
+        imgWidth = np.shape(imArray)[1]
+        numKeyRows, numKeysPerRow = calcNumKeyRows(imgWidth, numColors, circleDiam)
+        imArray = extendImageForKey(imArray, bufferSize, circleDiam, numKeyRows)
+        keyRowLenses = np.empty((numKeyRows,numKeysPerRow), dtype=object)
+        # The key row will be centered, not beginning at left edge of image
+        if (numKeyRows == 1):
+            keyRowWidth = circleDiam*numColors
+            remainingSpace = imgWidth-keyRowWidth
+            colOffset = math.ceil(remainingSpace/2)
+        else:
+            colOffset = math.ceil((imgWidth*(1-KEY_WIDTH_TO_IMAGE_WIDTH))/2)
+        # Set up the lenses
+        print("CREATING COLOR KEY...")
+        for colorIter in trange(0,numColors, disable=verbose):
+            currentKeyRow = math.floor(colorIter/numKeysPerRow)
+            keyIndexInRow = colorIter % numKeysPerRow
+            tlPix = (np.shape(imArray)[0]-circleDiam*(numKeyRows-currentKeyRow), colOffset+keyIndexInRow*circleDiam)
+            brPix = (tlPix[0]+circleDiam, tlPix[1]+circleDiam)
+            keyRowLenses[currentKeyRow][keyIndexInRow] = Lens(circleRad, tlPix, brPix, colorPalette[colorIter], colorIter)
+
+        # Color the key row
+        for keyLens in keyRowLenses[keyRowLenses != None].flatten(): #ignore uninitialized lenses at end of key
+            imArray[keyLens.tlPix[0]:keyLens.brPix[0], keyLens.tlPix[1]:keyLens.brPix[1]] = keyLens.fillColor
+
+        # Do all the color number annotation
+        imgForText = Image.fromarray(imArray)
+        imgDraw = ImageDraw.Draw(imgForText)
+        fontSize = findBestFontSize(imgDraw, circleRad)
+        if (verbose): print(f"FONT SIZE: {fontSize}")
+        print("ANNOTATING COLOR NUMBERS...")
+        for currLens in tqdm(lensArr.flatten(), disable=verbose):
+            # Number the lenses for the actual image
+            centerCol = currLens.tlPix[1]+math.ceil(currLens.radius)
+            centerRow = currLens.tlPix[0]+math.ceil(currLens.radius)
+            # DRAW TAKES COL,ROW. Anchor the horizontal and vertical midpoints of the text on the given position
+            imgDraw.text((centerCol, centerRow), str(currLens.fillNum), IMG_TEXT_COLOR, anchor="mm", font_size=fontSize)
+        for keyLens in keyRowLenses[keyRowLenses != None].flatten():
+            # Number the lenses for the key row
+            centerCol = keyLens.tlPix[1]+math.ceil(keyLens.radius)
+            centerRow = keyLens.tlPix[0]+math.ceil(keyLens.radius)
+            imgDraw.text((centerCol, centerRow), str(keyLens.fillNum), KEY_TEXT_COLOR, anchor="mm", font_size=fontSize)
+        
+        # Update imArray to include all the annotation
+        imArray = np.asarray(imgForText).copy()
 
     return imArray
 
@@ -113,7 +210,7 @@ def main(inImg, circleRad):
 if __name__ == "__main__":
     IMAGES_DIR = "./input_images"
     # Get user's arguments or defaults
-    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE = TI.getInputArgs()
+    FILE_PATH, COLOR_THRESH, BLUR_OPT, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE = TI.getInputArgs()
     if (FILE_PATH != None):
         FILE_PATH = Path(f"{IMAGES_DIR}/{FILE_PATH}")
     else:
@@ -121,10 +218,11 @@ if __name__ == "__main__":
     
     print("### LENS MASK ###\n" \
         f"Lens Size: {LENS_SIZE}\n" \
+        f"Coloring Book: {COLORING_BOOK}\n" \
         f"Selected Image: {FILE_PATH.name}")
     
-    inImg = Image.open(FILE_PATH)
-    outArr = main(inImg, LENS_SIZE)
+    inImg = ImageOps.exif_transpose(Image.open(FILE_PATH))
+    outArr = main(inImg, LENS_SIZE, COLORING_BOOK, VERBOSE_MODE)
     inImg.close()
     outImg = Image.fromarray(outArr)
     outImg.show()
