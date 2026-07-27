@@ -21,6 +21,8 @@ class Lens:
     fillNum = 255
     inLensMask = None
     outLensMask = None
+    perimeterLensMask = None
+    perimeterWidth = 1
 
     def __init__(self, radius, tlPix, brPix, fillColor, fillNum):
         self.radius = radius
@@ -30,12 +32,16 @@ class Lens:
         self.fillNum = fillNum # The number associated with this color    
         self.inLensMask = np.zeros((radius*2, radius*2), dtype=bool)
         self.outLensMask = np.zeros((radius*2, radius*2), dtype=bool)
+        self.perimeterLensMask = np.zeros((radius*2,radius*2), dtype=bool)
 
     def setInLensMask(self, arr):
         self.inLensMask = arr
 
     def setOutLensMask(self, arr):
         self.outLensMask = arr
+
+    def setPerimeterLensMask(self, arr):
+        self.perimeterLensMask = arr
 
     def genInLensMask(self, forceGen=False):
         # Skip execution if already generated
@@ -45,9 +51,10 @@ class Lens:
         elif (self.radius > 0):
             for m in range(0,self.radius*2):
                 for n in range(0, self.radius*2):
-                    # just use a^2 + b^2 = r^2 generate the mask
-                    sqDist = (PB.ezDiff(m, self.radius)**2 + PB.ezDiff(n,self. radius)**2)
-                    if (sqDist <= self.radius**2):
+                    # just use a^2 + b^2 = r^2 generate the mask, where the "origin" is at self.radius
+                    # since 0,0 is the top left hand corner
+                    sqDist = (PB.ezDiff(m, self.radius)**2 + PB.ezDiff(n,self.radius)**2)
+                    if (sqDist < (self.radius)**2):
                         self.inLensMask[m,n] = True
                     else:
                         self.inLensMask[m,n] = False
@@ -55,6 +62,17 @@ class Lens:
         # return error
         else:
             return -1
+
+    def genPerimeterLensMask(self):
+        if (self.radius > 0):
+            for m in range(0,self.radius*2):
+                for n in range(0, self.radius*2):
+                    sqDist = (PB.ezDiff(m, self.radius)**2 + PB.ezDiff(n,self.radius)**2)
+                    if (sqDist >= (self.radius)**2) and (sqDist <= (self.radius+self.perimeterWidth)**2):
+                        self.perimeterLensMask[m,n] = True
+                    else:
+                        self.perimeterLensMask[m,n] = False
+            return self.perimeterLensMask
 
     def genOutLensMask(self):
         # Check if array is already populated

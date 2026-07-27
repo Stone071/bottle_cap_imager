@@ -45,8 +45,8 @@ def getNumLenses(imgArray, circRad):
 def extendImageForKey(imArray, bufferSize, circleRad, numKeyRows):
     imgDims = np.shape(imArray)
     # Put in some blank area between image and key
-    bufferArray = np.full((bufferSize, imgDims[1], 3), RGB_BLACK, dtype=np.uint8) 
-    keyRowArray = np.full((circleRad*2*numKeyRows, imgDims[1], 3), RGB_BLACK, dtype=np.uint8)
+    bufferArray = np.full((bufferSize, imgDims[1], 3), RGB_WHITE, dtype=np.uint8) 
+    keyRowArray = np.full((circleRad*2*numKeyRows, imgDims[1], 3), RGB_WHITE, dtype=np.uint8)
     extendedArr = np.vstack((imArray, bufferArray, keyRowArray))
     return extendedArr
 
@@ -115,6 +115,7 @@ def main(inImg, circleRad, coloringBook, verbose):
     # masks for one of the lenses and reuse them over and over
     commonInLensMask = lensArr[0][0].genInLensMask()
     commonOutLensMask = lensArr[0][0].genOutLensMask()
+    if (coloringBook): commonPerimeterLensMask = lensArr[0][0].genPerimeterLensMask()
 
     # Now we can go ahead and recolor the image by looking through all the lenses
     print("RECOLORING LENSES...")
@@ -129,17 +130,20 @@ def main(inImg, circleRad, coloringBook, verbose):
         if (boxViewDims[0] == lensMaskDims[0] and boxViewDims[1] == lensMaskDims[1]):
             adjInLensMask = commonInLensMask
             adjOutLensMask = commonOutLensMask
+            adjPerimeterLensMask = commonPerimeterLensMask
         else:
             adjInLensMask = commonInLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
             adjOutLensMask = commonOutLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
+            adjPerimeterLensMask = commonPerimeterLensMask[0:boxViewDims[0], 0:boxViewDims[1]]
 
         # Mask by what's in the lens and recolor
         if(coloringBook):
-            lensBoxView[adjInLensMask] = RGB_WHITE
+            # Make everything white except the lens perimeter
+            lensBoxView[adjInLensMask | adjOutLensMask] = RGB_WHITE
+            lensBoxView[adjPerimeterLensMask] = RGB_BLACK
         else:    
             lensBoxView[adjInLensMask] = currLens.fillColor
-        # Mask by what's out of the lens and recolor
-        lensBoxView[adjOutLensMask] = RGB_BLACK
+            lensBoxView[adjOutLensMask] = RGB_BLACK
 
     # If doing a coloring book image, add the key row at the bottom
     # and then label the lenses with numbers
